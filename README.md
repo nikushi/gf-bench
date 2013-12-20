@@ -1,4 +1,4 @@
-# Gf::Bench
+# gf-bench
 
 Simpe benchmark tool for GrowthForecast
 
