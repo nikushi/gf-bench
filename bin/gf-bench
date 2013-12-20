@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+
+require 'slop'
+require 'parallel'
+require 'growthforecast-client'
+
+$opts = Slop.parse(:strict => true, :help => true) do
+  banner '$ gf-bench http://localhost:5125/ [options]'
+  on :n, :number=, 'Number of requests to perform', as: Integer, :default => 1000
+  on :c, :concurrency=, 'Number of multiple requests to make', as: Integer, :default => 1
+  on :s, :skip_initial_post, 'Do not initial post'
+  on :v, :verbose, "Verbose output"
+end
+
+$target = ARGV.shift || (
+  warn "target must be given"
+  exit 1
+)
+
+puts "requests = #{$opts[:number]}"
+puts "concurrency = #{$opts[:concurrency]}"
+puts "target = #{$target}"
+puts
+
+$client = GrowthForecast::Client.new($target)
+
+def gen_number
+  rand(10000)
+end
+
+def post(path)
+  puts "posting to /#{path[0]}/#{path[1]}/#{path[2]}" if $opts[:verbose]
+  begin
+    $client.post_graph(path[0], path[1], path[2], {"number" => gen_number})
+  rescue => e
+    puts e.message
+  end
+end
+
+def report_time
+  stime = Time.now
+  yield
+  etime = Time.now
+  duration = etime - stime
+  req_per_sec = ( duration > 0 ) ? $opts[:number]/duration : 0
+  puts "req/sec = #{req_per_sec}"
+end
+## main
+
+def service_name
+  'gf-bench'
+end
+
+def section_name
+  'section'
+end
+
+def graph_name(num)
+  num.to_s
+end
+
+def path_for(num)
+  [service_name, section_name, graph_name(num)]
+end
+
+paths = []
+$opts[:number].times{|i| paths << path_for(i) }
+
+unless $opts[:skip_initial_post]
+  puts "Preparing for test. Doing initial POST to create RRD file"
+  Parallel.each_with_index(paths, :in_processes => 4) do |path, i|
+    puts "processing #{i}" if i % 1000 == 0
+    post(path)
+  end
+end
+puts
+
+
+puts "Benchmark is starting"
+report_time do
+  Parallel.each_with_index(paths, :in_processes => $opts[:concurrency]) do |path, i|
+    puts "processing #{i}" if i % 1000 == 0
+    post(path)
+  end
+end
+
