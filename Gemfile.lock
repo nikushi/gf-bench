@@ -1,0 +1,18 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    growthforecast-client (0.62.3)
+      httpclient
+      thor
+    httpclient (2.3.4.1)
+    parallel (0.9.1)
+    slop (3.4.7)
+    thor (0.18.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  growthforecast-client
+  parallel
+  slop
